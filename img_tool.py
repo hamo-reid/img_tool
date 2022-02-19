@@ -14,9 +14,11 @@ class Box(object):
                  pos: Tuple[int, int] = (0, 0),
                  size: Tuple[int, int] = None):
         """
-        说明: Box对象，图片处理的参考框，根据坐标和大小生成基础点
-        :param pos:
-        :param size:
+        说明:
+            Box对象，图片处理的参考框，根据坐标和大小生成基础点
+        参数:
+            :param pos:
+            :param size:
         """
         if size is None:
             raise ValueError('param "size" is necessary')
@@ -72,7 +74,7 @@ class ImageFactory(object):
                           img: Union[Optional[str], Img] = None):
         """
         说明: 更换正在处理的图片
-        :param img:
+        :param img: Image对象，或图片路径
         """
         if type(img) is Img:
             self.img = img
@@ -374,7 +376,8 @@ class ImageFactory(object):
 
     def show(self):
         """
-        说明：展示基础图片
+        说明：
+            展示基础图片
         """
         self.img.show()
 
