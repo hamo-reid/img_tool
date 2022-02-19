@@ -64,7 +64,7 @@ class ImageFactory(object):
     def get_size(self):
         """
         说明: 获得处理图片的大小
-        :return: 大小元组
+        :return: 处理图片大小的元组
         """
         return self.img.size
 
@@ -82,7 +82,7 @@ class ImageFactory(object):
         self.draw = ImageDraw.Draw(self.img)
         self.boxes['self'] = Box((0, 0), self.img.size)
 
-    def add_foundation_box(
+    def add_box(
             self,
             box_id: str,
             pos: Tuple[int, int],
@@ -273,10 +273,10 @@ class ImageFactory(object):
     ):
         """
         说明：
-            画矩形
+            绘制矩形
         参数：
-            :param box: 
-            :param fill: 填充颜色
+            :param box: 矩形的box
+            :param color: 填充颜色
             :param outline: 轮廓颜色
             :param width: 线宽
         """
@@ -309,7 +309,7 @@ class ImageFactory(object):
     ):
         """
         说明：
-            画线
+            绘制直线
         参数：
             :param xy: 坐标
             :param fill: 填充
@@ -613,9 +613,9 @@ def hex_to_rgb(hex_color: str,
                alpha: int = None):
     """
     说明：将16进制颜色转换为RGB格式
-    :param hex_color: 16进制颜色字符串
-    :param alpha: 透明度
-    :return: RGB或RGBA元组
+        :param hex_color: 16进制颜色字符串
+        :param alpha: 透明度
+        :return: RGB或RGBA元组
     """
     r = int(hex_color[1:3], 16)
     g = int(hex_color[3:5], 16)
@@ -633,6 +633,7 @@ def img2b64(pic: Image) -> str:
         PIL图片转base64
     参数：
         :param pic: 通过PIL打开的图片文件
+        :return base64字符串
     """
     buf = BytesIO()
     pic.save(buf, format="PNG")
@@ -646,6 +647,7 @@ def pic2b64(path: Union[str, Path]) -> str:
             图片转base64
         参数：
             :param path: 图片路径
+            :return base64字符串
         """
     if type(path) is str:
         path = Path(path)
