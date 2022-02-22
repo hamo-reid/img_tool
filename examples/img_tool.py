@@ -155,6 +155,7 @@ class ImageFactory(object):
                     align_x = int(h_center - size[0] / 2)
                     align_y = pos[1]
                 elif align == "vertical":
+                    print(2)
                     _, v_center = get_center(box_pos, box_size)
                     align_x = pos[0]
                     align_y = int(v_center - size[1] / 2)
@@ -294,14 +295,14 @@ class ImageFactory(object):
             raise ValueError('Param "box" expect string or Box object')
         start_pos = box_pos
         end_pos = (box_pos[0] + box_size[0], box_pos[1] + box_size[1])
-
-        if color is None:
+        if color is not None:
+            if len(color) == 3 or type(color) == str:
+                self.draw.rectangle((*start_pos, *end_pos), color, outline, width)
+            elif len(color) == 4:
+                self.img_paste(Image.new('RGBA', box_size, color=color), box_pos)
+                self.draw.rectangle((*start_pos, *end_pos), outline=outline, width=width)
+        else:
             self.draw.rectangle((*start_pos, *end_pos), color, outline, width)
-        elif len(color) == 3:
-            self.draw.rectangle((*start_pos, *end_pos), color, outline, width)
-        elif len(color) == 4:
-            self.img_paste(Image.new('RGBA', box_size, color=color), box_pos)
-            self.draw.rectangle((*start_pos, *end_pos), outline, width)
 
     def line(
             self,
@@ -339,7 +340,7 @@ class ImageFactory(object):
                 w = int(self.img.size[0] * ratio)
             if h == 0:
                 ratio = w / self.img.size[0]
-                w = int(self.img.size[1] * ratio)
+                h = int(self.img.size[1] * ratio)
         else:
             if not w and not h and not ratio:
                 raise Exception("缺少参数...")
@@ -388,6 +389,7 @@ def multi_text(text: str,
                default_color: Union[str, Tuple[int, int, int], Tuple[int, int, int, int]] = 'black',
                default_size: int = 20,
                default_stroke_width: int = 0,
+               default_stroke_fill: Union[str, Tuple[int, int, int], Tuple[int, int, int, int]] = 'black',
                box_size: Tuple[int, int] = (0, 0),
                h_border_ignore: bool = False,
                v_border_ignore: bool = False,
@@ -407,7 +409,8 @@ def multi_text(text: str,
     :param default_font: 非特殊文本默认字体
     :param default_color: 非特殊文本默认颜色
     :param default_size: 非特殊文本默认大小
-    :param default_stroke_width: 非特殊文本默认粗细程度
+    :param default_stroke_width: 非特殊文本默认轮廓宽度
+    :param default_stroke_fill: 非特殊文本默认轮廓颜色
     :param box_size: 目标转换的box大小 tuple(width, height) 长宽任一值非正，
                      视为该维度无边界限制，将根据转换实际文本大小自适应，同时
                      对应边界限制参数无效
@@ -416,6 +419,7 @@ def multi_text(text: str,
     :param get_surplus: 是否获得多余的字符串
     :return: Img对象
     """
+    source_box = box_size
     surplus_text = ''
     # 分割换行符
     enter_list = text.split('\n')
@@ -431,7 +435,11 @@ def multi_text(text: str,
             if a:
                 # 匹配结果起始及结束下标
                 start, end = a.span()
-                font, size, color, stroke_width = default_font, default_size, default_color, default_stroke_width
+                font = default_font
+                size = default_size
+                color = default_color
+                stroke_width = default_stroke_width
+                stroke_fill = default_stroke_fill
                 # 根据文本对参数赋值
                 for param in a.group(1).split():
                     _param = param.split('=')
@@ -447,12 +455,19 @@ def multi_text(text: str,
                             color = (int(x) for x in _param[1])
                         else:
                             color = _param[1]
+                    elif _param[0] == 'stroke_fill':
+                        rgba_result = re.findall(r'\d+', _param[1])
+                        if len(rgba_result) in [3, 4]:
+                            stroke_fill = (int(x) for x in _param[1])
+                        else:
+                            stroke_fill = _param[1]
                 # 特殊文本外的结果储存
                 if piece[:start]:
                     front_piece = {'font': default_font,
                                    'size': default_size,
                                    'color': default_color,
                                    'stroke_width': default_stroke_width,
+                                   'stroke_fill': default_stroke_fill,
                                    'text': piece[:start]}
                     line_pieces.append(front_piece)
                 # 特殊文本结果储存
@@ -460,6 +475,7 @@ def multi_text(text: str,
                                'size': size,
                                'color': color,
                                'stroke_width': stroke_width,
+                               'stroke_fill': stroke_fill,
                                'text': piece[end:]}
                 line_pieces.append(multi_piece)
             else:
@@ -468,12 +484,15 @@ def multi_text(text: str,
                                    'size': default_size,
                                    'color': default_color,
                                    'stroke_width': default_stroke_width,
+                                   'stroke_fill': default_stroke_fill,
                                    'text': piece}
                     line_pieces.append(other_piece)
         # 总行储存
         total_lines.append(line_pieces)
     # 是否自动换行处理
     if not h_border_ignore and box_size[0] > 0:
+        if default_stroke_width > 0:
+            box_size = (box_size[0]-default_stroke_width*2, box_size[1])
         new_total_lines = []
         for line in total_lines:
             new_line = []
@@ -505,6 +524,8 @@ def multi_text(text: str,
         total_lines = new_total_lines
     # 是否超高舍去
     if not v_border_ignore and box_size[1] > 0:
+        if default_stroke_width > 0:
+            box_size = (box_size[0], box_size[1]-default_stroke_width*2)
         total_height = 0
         for i, line in enumerate(total_lines):
             line_height = 0
@@ -531,7 +552,6 @@ def multi_text(text: str,
                 break
             else:
                 total_height += line_height + spacing
-
     # 整体测高
     if box_size[0] <= 0 or box_size[1] <= 0:
         total_height, total_width = 0, 0
@@ -539,7 +559,8 @@ def multi_text(text: str,
             line_height, line_width = 0, 0
             for piece in line:
                 using_font = ImageFont.truetype(piece['font'], piece['size'])
-                piece_width, piece_height = using_font.getsize(piece['text'])
+                piece_width = using_font.getsize(piece['text'])[0]
+                piece_height = using_font.getsize(piece['text'])[1]
                 line_width += piece_width
                 if piece_height > line_height:
                     line_height = piece_height
@@ -550,9 +571,15 @@ def multi_text(text: str,
             box_size = (total_width, box_size[1])
         if box_size[1] <= 0:
             box_size = (box_size[0], total_height)
-    img = Image.new('RGBA', box_size, color=(255, 255, 255, 0))
+    true_box_size = (box_size[0]+default_stroke_width*2, box_size[1]+default_stroke_width*2)
+    if not h_border_ignore and source_box != (0, 0):
+        true_box_size = (source_box[0], box_size[1]+default_stroke_width*2)
+    if not v_border_ignore and source_box != (0, 0):
+        true_box_size = (box_size[0]+default_stroke_width*2, source_box[1])
+    img = Image.new('RGBA', true_box_size,
+                    color=(255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
-    pos = (0, 0)
+    pos = (0 + default_stroke_width, 0 + default_stroke_width)
     line_start_pos = list(pos)
     # 对片进行分行，测量，显示
     for x in total_lines:
@@ -566,7 +593,8 @@ def multi_text(text: str,
         for index2, y in enumerate(x):
             pos[1] = line_start_pos[1] + max_height - pieces_sizes[index2][1]
             using_font = ImageFont.truetype(y['font'], y['size'])
-            draw.text(pos, y['text'], fill=y['color'], font=using_font, stroke_width=y['stroke_width'])
+            draw.text(pos, y['text'],
+                      fill=y['color'], font=using_font, stroke_width=y['stroke_width'], stroke_fill=y['stroke_fill'])
             pos[0] += pieces_sizes[index2][0]
         line_start_pos[1] += (max_height + spacing)
     if get_surplus:
@@ -657,3 +685,18 @@ def pic2b64(path: Union[str, Path]) -> str:
     pic_bytes = path.read_bytes()
     base64_str = base64.b64encode(pic_bytes).decode()
     return base64_str
+
+
+def is_valid(file: str) -> bool:
+    """
+    说明：
+        判断图片是否损坏
+    参数：
+        :param file: 图片文件路径
+    """
+    valid = False
+    try:
+        Image.open(file).load()
+    except OSError:
+        valid = True
+    return valid
